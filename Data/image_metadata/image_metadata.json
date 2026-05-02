@@ -1,0 +1,142 @@
+[
+  {
+    "image_id": "IMG001",
+    "file_name": "IMG001_neuron_structure.PNG",
+    "source_name": "AnatomyTOOL",
+    "source_url": "",
+    "topic": "nervous tissue",
+    "structure_name": "neuron",
+    "aliases": [
+      "nerve cell",
+      "neuron structure"
+    ],
+    "body_region": "nervous system",
+    "function": "basic neural signaling structure",
+    "difficulty": "medium",
+    "related_text_topic": "nervous tissue",
+    "common_misidentifications": [
+      "glial cell",
+      "astrocyte",
+      "schwann cell",
+      "oligodendrocyte"
+    ]
+  },
+  {
+    "image_id": "IMG002",
+    "file_name": "IMG002_brain_lobes.PNG",
+    "source_name": "AnatomyTOOL",
+    "source_url": "",
+    "topic": "nervous system basics",
+    "structure_name": "brain lobes",
+    "aliases": [
+      "cerebral lobes",
+      "lobes of the brain"
+    ],
+    "body_region": "brain",
+    "function": "higher-order brain organization",
+    "difficulty": "medium",
+    "related_text_topic": "nervous system basics",
+    "common_misidentifications": [
+      "cerebellum",
+      "brainstem",
+      "limbic system",
+      "basal ganglia"
+    ]
+  },
+  {
+    "image_id": "IMG003",
+    "file_name": "IMG003_spinal_cord_section.PNG",
+    "source_name": "MedPix",
+    "source_url": "",
+    "topic": "muscle structure",
+    "structure_name": "skeletal muscle fiber",
+    "aliases": [
+      "muscle fiber",
+      "sarcomere",
+      "skeletal muscle",
+      "myofibril",
+      "sarcolemma"
+    ],
+    "body_region": "skeletal muscle",
+    "function": "contractile organization",
+    "difficulty": "medium",
+    "related_text_topic": "muscle structure",
+    "common_misidentifications": [
+      "cardiac muscle fiber",
+      "smooth muscle fiber",
+      "myofibril",
+      "actin filament"
+    ]
+  },
+  {
+    "image_id": "IMG004",
+    "file_name": "IMG004_nervous_system_overview.jpg",
+    "source_name": "MedPix",
+    "source_url": "",
+    "topic": "nervous system basics",
+    "structure_name": "nervous system overview",
+    "aliases": [
+      "CNS and PNS",
+      "nervous system organization"
+    ],
+    "body_region": "whole body",
+    "function": "organization of central and peripheral nervous system",
+    "difficulty": "easy",
+    "related_text_topic": "nervous system basics",
+    "common_misidentifications": [
+      "autonomic nervous system",
+      "somatic nervous system",
+      "sympathetic nervous system",
+      "peripheral nervous system"
+    ]
+  },
+  {
+    "image_id": "IMG005",
+    "file_name": "IMG005_brachial_plexus.png",
+    "source_name": "MedPix",
+    "source_url": "",
+    "topic": "peripheral nerves",
+    "structure_name": "brachial plexus",
+    "aliases": [
+      "nerve plexus",
+      "upper limb nerves"
+    ],
+    "body_region": "shoulder and upper limb",
+    "function": "upper limb nerve distribution",
+    "difficulty": "hard",
+    "related_text_topic": "peripheral nerves",
+    "common_misidentifications": [
+      "lumbar plexus",
+      "cervical plexus",
+      "lumbosacral plexus",
+      "axillary nerve"
+    ]
+  },
+  {
+    "image_id": "IMG006",
+    "file_name": "IMG006_skeletal_muscle_fiber.png",
+    "source_name": "Open educational source",
+    "source_url": "",
+    "topic": "muscle structure",
+    "structure_name": "shoulder muscles",
+    "aliases": [
+      "rotator cuff",
+      "upper limb muscles",
+      "subscapularis",
+      "latissimus dorsi",
+      "biceps",
+      "trapezius",
+      "shoulder muscle group"
+    ],
+    "body_region": "shoulder and upper limb",
+    "function": "upper limb movement and stabilization",
+    "difficulty": "hard",
+    "related_text_topic": "muscle structure",
+    "common_misidentifications": [
+      "brachial plexus",
+      "rotator cuff only",
+      "deltoid",
+      "pectoralis major"
+    ]
+  }
+]

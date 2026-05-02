@@ -1,0 +1,589 @@
+\documentclass[11pt]{article}
+\usepackage{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{xurl}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage[section]{placeins}
+
+\setlength\titlebox{5.0cm}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\graphicspath{{./}}
+
+\setlength{\textfloatsep}{6pt plus 1pt minus 2pt}
+\setlength{\floatsep}{6pt plus 1pt minus 2pt}
+\setlength{\intextsep}{6pt plus 1pt minus 2pt}
+\setlength{\dbltextfloatsep}{6pt plus 1pt minus 2pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{0pt}
+\renewcommand{\arraystretch}{0.96}
+
+\setlist[itemize]{leftmargin=*,itemsep=1pt,topsep=2pt,parsep=0pt,partopsep=0pt}
+\setlist[enumerate]{leftmargin=*,itemsep=1pt,topsep=2pt,parsep=0pt,partopsep=0pt}
+
+\title{Socratic-OT: A Grounded Multimodal Socratic Tutor\\
+for Anatomy and Neuroscience Learning in Rehabilitation Science}
+
+\author{Vidhyadhari Bandaru \\
+  Department of Computer Science \\ and Engineering \\
+  University at Buffalo \\
+  Buffalo, NY, USA \\
+  \texttt{bandaru7@buffalo.edu}
+  \And
+  Richie M Ilavarapu \\
+  Department of Computer Science \\ and Engineering \\
+  University at Buffalo \\
+  Buffalo, NY, USA \\
+  \texttt{richiemo@buffalo.edu}}
+
+\begin{document}
+\maketitle
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{abstract}
+We present \textbf{Socratic-OT}, a grounded multimodal tutoring system for
+occupational-therapy (OT) students studying anatomy and neuroscience.
+Unlike conventional QA assistants that answer directly, Socratic-OT enforces
+a \emph{tutor-not-teller} policy: it retrieves supporting evidence exclusively
+from a faculty-approved textbook corpus, masks the target answer, and guides
+the student through Socratic clues before revealing it.
+The system supports both text and image inputs through a five-layer pipeline ---
+routing, retrieval, tutoring-policy control, generation, and post-topic
+assessment --- orchestrated by a LangGraph finite-state machine.
+The text knowledge base is built from all 28 chapters of OpenStax
+\emph{Anatomy \& Physiology 2e} (997 retrieval-ready chunks); the multimodal
+branch is grounded by a curated set of anatomy diagrams with structured
+metadata.
+Baseline evaluation on 20 anatomy QA pairs yields RAGAS Faithfulness of
+\textbf{0.91} and Answer Relevancy of \textbf{0.97}, confirming strong
+retrieval grounding.
+A purity audit on 8 scripted tutoring transcripts achieves \textbf{100\%}
+Socratic purity --- the masked answer never appears in any clue-phase turn.
+A blind multimodal evaluation on uploaded anatomy diagrams achieves
+\textbf{66.7\%} structure identification accuracy, with failures concentrated
+on cross-sectional and histological views.
+We identify retrieval breadth as the primary remaining bottleneck and outline
+concrete improvements targeting both retrieval recall and multimodal robustness.
+\end{abstract}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Introduction}
+
+Large language models have made conversational tutoring widely accessible,
+but general-purpose assistants optimize for answering rather than teaching.
+For occupational-therapy education, this is a fundamental mismatch.
+Anatomy and neuroscience are bottleneck courses for OT programs, characterized
+by high content density, strong dependence on 3-D spatial relationships, and
+a need for clinical reasoning rather than simple recall.
+In these settings, passive answer delivery short-circuits the guided-discovery
+process that prepares students for lab and board-style problem solving.
+
+Socratic-OT enforces a system-level \emph{tutor-not-teller} constraint:
+the answer is never named in clue-phase turns, retrieval is restricted to
+faculty-approved content (OpenStax A\&P~2e), and diagram-based tutoring
+applies the same Socratic loop to uploaded anatomy images.
+This paper presents the first working prototype and its baseline evaluation
+across three dimensions: retrieval grounding (RAGAS), pedagogical purity
+(no-leak audit), and multimodal accuracy (blind structure identification).
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Related Work}
+
+Our design draws on three lines of prior work.
+
+\paragraph{Grounded tutoring.}
+SocraticLM \citep{socraticlm} frames tutoring as guided reasoning rather than
+answer delivery; we extend this by enforcing the no-reveal constraint
+programmatically via a purity guard, rather than relying on soft prompting.
+
+\paragraph{Retrieval-augmented generation.}
+We adopt RAGAS \citep{es2024ragas,ragas_docs} for grounding assessment because
+its decomposed metrics (faithfulness, relevance, recall, precision) directly
+diagnose retrieval and generation failure modes separately.
+
+\paragraph{Multimodal instruction tuning.}
+LLaVA \citep{llava,llava16} demonstrates that image-grounded dialogue is
+feasible with vision-language models, motivating our VLM cascade design.
+
+Our work differs from Khanmigo \citep{khanmigo} and BoodleBox
+\citep{boodlebox,boodlebox_bots}: answer withholding is enforced
+programmatically, guaranteeing consistent Socratic behavior regardless of
+how the student phrases their request.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Data}
+
+\subsection{Text Knowledge Base}
+
+The text corpus is derived from OpenStax \emph{Anatomy \& Physiology 2e}
+\citep{openstax_ap2e}, the standard approved reference for OT anatomy courses.
+Our pipeline: (1)~extracts full text from all 28 chapters via PDF parsing;
+(2)~detects section boundaries and generates section-level files;
+(3)~cleans page markers, duplicated fragments, and formatting artifacts;
+(4)~assigns topic labels (\emph{muscle}, \emph{nervous system}, etc.) to each
+section;
+(5)~chunks each cleaned section into overlapping paragraphs of approximately
+341 words with 40-word overlap;
+(6)~stores each chunk with source identifier, chapter, section title, topic
+label, and keyword summary.
+
+This yields \textbf{997 retrieval-ready chunks}, embedded with
+\texttt{all-MiniLM-L6-v2} \citep{allminilm_model} and indexed in
+ChromaDB \citep{chroma_docs}.
+Table~\ref{tab:kb-assets} summarizes the full knowledge-base inventory.
+Figure~\ref{fig:chunk-sample} shows a representative chunk to illustrate
+the granularity and structure of the retrieved evidence.
+
+\begin{figure}[t]
+\centering
+\fbox{%
+\begin{minipage}{0.93\columnwidth}
+\footnotesize
+\textbf{Chunk ID:} CH0290 \quad
+\textbf{Chapter:} 10 \quad
+\textbf{Topic:} \texttt{muscle}\\[2pt]
+\textbf{Section:} 10.1 Overview of Muscle Tissues\\[4pt]
+The body contains three types of muscle tissue: skeletal, smooth, and
+cardiac. Contraction begins when actin is pulled by myosin after binding
+sites are exposed via Ca\textsuperscript{2+} interaction with troponin
+and tropomyosin\ldots
+\end{minipage}}
+\caption{Representative text chunk from the knowledge base (1 of 997).
+Chunks are stored with source identifiers, chapter, section, topic label,
+and keyword summary.}
+\label{fig:chunk-sample}
+\end{figure}
+
+\begin{table}[t]
+\centering\small
+\begin{tabularx}{\columnwidth}{@{}l r@{}}
+\toprule
+\textbf{Asset} & \textbf{Count} \\
+\midrule
+Source chapters & 28 \\
+Retrieval-ready text chunks & 997 \\
+Embedding model & \texttt{all-MiniLM-L6-v2} \\
+Vector store & ChromaDB \\
+\bottomrule
+\end{tabularx}
+\caption{Knowledge-base assets at Milestone~2.}
+\label{tab:kb-assets}
+\end{table}
+
+\subsection{Image Knowledge Base}
+
+The visual knowledge base consists of a curated collection of anatomy diagrams
+aligned with the OT curriculum scope, spanning major anatomical systems:
+nervous tissue, brain organization, peripheral nerve networks, and skeletal
+muscle structure.
+Each diagram is paired with a structured metadata record containing: image ID,
+canonical structure name, known aliases, topic label, body region, functional
+description, and a related text topic.
+Table~\ref{tab:image-metadata} shows an example record.
+
+\begin{table}[t]
+\centering\footnotesize
+\begin{tabularx}{\columnwidth}{@{}lY@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Image ID & IMG001 \\
+Structure name & Neuron \\
+Aliases & nerve cell; neuron structure \\
+Topic & nervous tissue \\
+Body region & nervous system \\
+Function & basic neural signaling structure \\
+\bottomrule
+\end{tabularx}
+\caption{Example image metadata record (IMG001).}
+\label{tab:image-metadata}
+\end{table}
+
+This metadata \emph{bridges} uploaded diagrams to the text KB, grounding
+image-path tutoring in the same retrieval pipeline as text-path tutoring.
+
+\subsection{Evaluation Data and Transcripts}
+\label{sec:transcripts}
+
+For purity auditing and qualitative analysis we construct eight scripted
+evaluation transcripts covering the full scenario space of the system:
+five text-path (normal flow, early correct guess, repeated DONT\_KNOW,
+out-of-KB rejection, wrong-named comparison clue) and three image-path
+(in-KB diagram, non-anatomy domain guard, unlabeled 3-D render with fuzzy
+KB match).
+
+\medskip
+\noindent\textbf{Text-path excerpt} (eval\_s2: student guesses correctly after
+the second clue):
+
+\begin{small}
+\begin{tabbing}
+\hspace{1.5em}\=\kill
+\textbf{S:}\> What lobe of the cerebral cortex is primarily \\
+            \> responsible for visual processing? \\[3pt]
+\textbf{T:}\> Great question, let's explore this together! This lobe \\
+            \> is located on the \emph{posterior} aspect of the cerebrum, \\
+            \> near the midline, above the tentorium cerebelli. \\
+            \> Can you name the lobe? \\[3pt]
+\textbf{S:}\> Is it the frontal lobe? \\[3pt]
+\textbf{T:}\> Not quite --- that's a different lobe. This lobe processes \\
+            \> and integrates sensory information. What is it called? \\[3pt]
+\textbf{S:}\> The occipital lobe? \\[3pt]
+\textbf{T:}\> Yes, exactly --- \textbf{Occipital lobe}! The occipital lobe \\
+            \> is the region primarily responsible for processing visual \\
+            \> information and interpreting visual stimuli\ldots
+\end{tabbing}
+\end{small}
+
+\medskip
+\noindent\textbf{Text-path excerpt} (eval\_s3: student exhausts clue budget
+and requests the answer):
+
+\begin{small}
+\begin{tabbing}
+\hspace{1.5em}\=\kill
+\textbf{S:}\> What nerve network originates from the cervical and upper \\
+            \> thoracic spinal roots and supplies the upper limb? \\[3pt]
+\textbf{T:}\> Great question, let's explore this together! This network \\
+            \> arises from the cervical and upper thoracic spinal regions \\
+            \> and is responsible for supplying the upper limb with a \\
+            \> wide range of motor and sensory functions. What is it? \\[3pt]
+\textbf{S:}\> I don't know. \\[3pt]
+\textbf{T:}\> No worries, let me give you another angle. This network \\
+            \> enables movements from simple grasping to fine motor \\
+            \> control. What is it called? \\[3pt]
+\textbf{S:}\> I have no idea, I'm stuck. \\[3pt]
+\textbf{T:}\> That's okay --- let's try a different clue. This network \\
+            \> is more localized than the sympathetic system --- focused \\
+            \> on the cervical and upper thoracic region. What is it? \\[3pt]
+\textbf{S:}\> I really don't know, I give up. \\[3pt]
+\textbf{T:}\> No worries! The answer is \textbf{brachial plexus} --- a \\
+            \> network of nerves from the neck and upper back controlling \\
+            \> the shoulder, elbow, wrist, and hand\ldots
+\end{tabbing}
+\end{small}
+
+\medskip
+\noindent\textbf{Image-path excerpt} (eval\_img2: non-anatomy image rejected
+before tutoring begins):
+
+\begin{center}
+  \includegraphics[width=0.55\columnwidth]{eval_img2_upload.png}
+\end{center}
+
+\begin{small}
+\begin{tabbing}
+\hspace{1.5em}\=\kill
+\textbf{S:}\> \textit{[uploads image above]} What is this diagram showing? \\[3pt]
+\textbf{T:}\> Hmm, that doesn't look like an anatomy diagram to me! \\
+            \> I'm designed to help with anatomy and neuroscience images \\
+            \> --- things like muscles, nerves, or brain diagrams. \\
+            \> Try uploading an anatomy diagram and I'll be happy \\
+            \> to work through it with you.
+\end{tabbing}
+\end{small}
+
+\medskip
+\noindent\textbf{Image-path excerpt} (eval\_img3: unlabeled 3-D neuron render
+matched to KB via fuzzy alias):
+
+\begin{center}
+  \includegraphics[width=0.55\columnwidth]{eval_img3_upload.png}
+\end{center}
+
+\begin{small}
+\begin{tabbing}
+\hspace{1.5em}\=\kill
+\textbf{S:}\> \textit{[uploads image above]} I see a cell with branches --- \\
+            \> what structure is this? \\[3pt]
+\textbf{T:}\> Oh nice, let's dig into this diagram together! This is a \\
+            \> peripheral branching network of structures. Can you tell \\
+            \> me which cell this is? \\[3pt]
+\textbf{S:}\> Is it a Schwann cell? \\[3pt]
+\textbf{T:}\> Not quite --- that's a different cell. The branches here \\
+            \> provide support and insulation for a basic neural signaling \\
+            \> structure found in the PNS. What cell is this? \\[3pt]
+\textbf{S:}\> Maybe a neuron? \\[3pt]
+\textbf{T:}\> Yes, exactly --- \textbf{neuron}! A neuron is a specialized \\
+            \> cell that plays a crucial role in transmitting information \\
+            \> throughout the nervous system\ldots
+\end{tabbing}
+\end{small}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Solution Architecture}
+
+Socratic-OT is organized into five runtime layers (Figure~\ref{fig:architecture}).
+Text and image inputs initialize the hidden target differently, but both
+converge to the same retrieval-grounded tutoring controller.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{architecture_diagram-3.png}
+  \caption{Socratic-OT runtime architecture. Text and image inputs share the
+  same retrieval-grounded tutoring controller after target initialization.}
+  \label{fig:architecture}
+\end{figure}
+
+\subsection{Routing and Retrieval}
+
+Every student input passes through a routing layer that classifies it as
+text, image, or follow-up.
+For text inputs, the retriever computes an \texttt{all-MiniLM-L6-v2} embedding
+and retrieves the top-5 chunks from ChromaDB by cosine similarity.
+A metadata-aware reranking step then prioritizes chunks whose topic label
+aligns with the inferred query intent; adjacent chunks from the same section
+may be merged before final prompting to improve context coherence.
+
+For image inputs, the VLM module runs a cascade:
+Groq \texttt{llama-4-scout-17b} (primary) $\rightarrow$ LLaVA-NeXT on GPU
+(when available) $\rightarrow$ GPT-4o (fallback) \citep{gpt4o,llava16}.
+The VLM returns an IS\_ANATOMY flag, predicted structure name, topic, and
+confidence.
+If IS\_ANATOMY is false, a polite domain-guard rejection is issued immediately
+and no tutoring begins.
+Otherwise, the predicted structure is matched against KB metadata (exact name
+or alias), and the matched record provides both the canonical target and the
+text-retrieval topic for subsequent tutoring.
+
+\subsection{Tutoring Policy Controller}
+
+The tutoring policy layer is implemented as a LangGraph finite-state machine
+\citep{langgraph_docs} with phases:
+\textsc{rapport} $\to$ \textsc{clue}(1--3) $\to$ \textsc{reveal} $\to$
+\textsc{post\_reveal\_wait} $\to$ \textsc{quiz} $\to$ \textsc{done}.
+It enforces four system-level invariants:
+
+\paragraph{Answer masking.}
+At session start, the system constructs a forbidden-term set from the masked
+answer plus LLM-generated aliases (e.g., ``neuron'' $\to$
+\{``neuron'', ``nerve cell'', ``neural cell''\}).
+A purity guard scans every generated response and triggers regeneration if any
+forbidden term appears.
+To allow comparison clues --- where the tutor must name the student's wrong
+guess to contrast it with the hidden target --- the student's own attempt
+tokens are excluded from the leak check.
+
+\paragraph{Attempt classification.}
+An LLM judge classifies each student response as \textsc{correct},
+\textsc{partial}, \textsc{wrong\_named}, \textsc{dont\_know}, or
+\textsc{other}.
+For image-path tutoring, a deterministic fast-path classifies known
+biologically-proximate wrong guesses (e.g., ``astrocyte'' or ``glial cell''
+when the answer is ``neuron'') using a pre-specified list in the image
+metadata, bypassing the LLM to prevent classifier ambiguity on
+anatomically similar structures.
+
+\paragraph{Clue dimension selection.}
+Clue content is shaped by the attempt classification.
+A \textsc{wrong\_named} response triggers a \emph{comparison} clue that
+explicitly names the student's wrong guess and explains how it differs from
+the hidden target --- without naming the target.
+A \textsc{dont\_know} response triggers a progressively stronger hint without
+a comparison anchor.
+
+\paragraph{Domain guard.}
+An LLM-based scope classifier determines whether the query concerns human
+anatomy or physiology.
+Out-of-domain questions receive a polite rejection rather than a hallucinated
+in-domain answer.
+
+\subsection{Generation and Assessment}
+
+The generation layer uses Groq-hosted Llama~3.1~8B Instruct as the primary
+text backend, with GPT-4o-mini as fallback \citep{groq_docs,gpt4omini_docs}.
+After each tutoring topic, a lightweight post-topic assessment module presents
+the student with three mastery-check questions drawn from the retrieved context.
+Session state tracks weak topics and wrong guesses for within-session revisit.
+
+\subsection{Design Rationale}
+
+The retrieval layer is domain-agnostic: swapping the ChromaDB collection
+ports the tutor to a new subject without architecture changes.
+The policy layer enforces pedagogical constraints independently of the
+generation layer --- the LLM generates clue text, but \emph{whether} to
+reveal the answer is decided entirely by the state machine, making
+Socratic behavior robust to unusual student phrasing or prompt injection.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Experiments and Results}
+
+\subsection{Groundedness: RAGAS Evaluation}
+\label{sec:ragas}
+
+We evaluate retrieval-augmented generation quality using RAGAS
+\citep{es2024ragas} on 20 anatomy QA pairs spanning all 28 KB chapters.
+For each question, the system retrieves the top-5 context chunks and generates
+an answer conditioned strictly on that retrieved context.
+We report four metrics: Faithfulness, Answer Relevancy, Context Recall, and
+Context Precision.
+
+\begin{table}[t]
+\centering\small
+\begin{tabularx}{\columnwidth}{@{}l c c c@{}}
+\toprule
+\textbf{Metric} & \textbf{Score} & \textbf{Target} & \textbf{Status} \\
+\midrule
+Faithfulness      & 0.9135 & $\geq$0.90 & Pass \\
+Answer Relevancy  & 0.9694 & $\geq$0.85 & Pass \\
+Context Recall    & 0.6471 & $\geq$0.80 & Below target \\
+Context Precision & 0.7792 & $\geq$0.80 & Slightly below \\
+\bottomrule
+\end{tabularx}
+\caption{Baseline RAGAS results on 20 anatomy QA pairs.}
+\label{tab:ragas-results}
+\end{table}
+
+\textbf{Faithfulness (0.91)} and \textbf{Answer Relevancy (0.97)} confirm
+the system stays grounded and on-topic --- it does not hallucinate anatomy
+facts and directly addresses each question.
+\textbf{Context Recall (0.65)} is the weakest result: broad questions
+spanning multiple chapters (e.g., \emph{``Describe the dorsal
+column--medial lemniscal pathway''}) require evidence distributed across
+several section chunks, but a single semantic query surfaces only the most
+proximate unit.
+\textbf{Context Precision (0.78)} falls slightly below target due to
+off-topic chunks retrieved via lexical overlap with unrelated sections ---
+both metrics point to retrieval breadth, not generation quality, as the
+bottleneck.
+
+\subsection{Socratic Purity Audit}
+
+We define \emph{Socratic purity} as the property that the masked answer does
+not appear in any \textsc{clue}-phase tutor turn.
+We audit this by scanning all 8 evaluation transcripts and checking
+case-insensitively whether the masked answer string appears in any tutor turn
+with phase~$=$~\textsc{clue}.
+
+\textbf{Result: 8/8 = 100\% purity.}
+This holds across adversarial cases including biologically-proximate wrong
+guesses (e.g., ``astrocyte'' when the answer is ``neuron''), where the
+purity guard must allow the student's guess to be named in a comparison clue
+while still suppressing the hidden target.
+
+\paragraph{Clue relevance (qualitative).}
+Purity verifies the answer is not leaked; it does not verify the clue is
+useful.
+We therefore manually assessed all clue-phase tutor turns across the 8
+transcripts on a 1--5 rubric (1~=~generic or off-topic;
+3~=~partially relevant; 5~=~grounded, specific, and clearly narrowing
+toward the answer without revealing it).
+Clues for focused single-topic questions consistently rated 4--5, reflecting
+strong retrieval grounding.
+Clues for broad multi-chapter questions rated 3--4, directly tracking the
+Context Recall gap (Section~\ref{sec:ragas}) --- when the retriever misses
+relevant chunks, the clue loses specificity.
+This qualitative pattern motivates the hybrid retrieval improvement planned
+for future work; a formal student-cohort annotation is reserved for
+final-milestone evaluation.
+
+\subsection{Multimodal Blind Test}
+
+We evaluate the multimodal branch on a blind evaluation set of uploaded
+anatomy diagrams, each passed to the VLM without labels or KB hints.
+The VLM must identify the anatomical structure from visual content alone;
+a prediction is scored correct if the expected structure name or any
+registered alias appears in the predicted string.
+Table~\ref{tab:vlm-results} shows per-image results.
+
+\begin{table}[t]
+\centering\small
+\begin{tabularx}{\columnwidth}{@{}XXc@{}}
+\toprule
+\textbf{Image} & \textbf{Predicted} & \textbf{Correct} \\
+\midrule
+Neuron structure          & neuron                  & \checkmark \\
+Brain lobes               & brain lobes             & \checkmark \\
+Spinal cord cross-section & skeletal muscle fiber   & $\times$   \\
+Nervous system overview   & nervous system overview & \checkmark \\
+Brachial plexus           & brachial plexus         & \checkmark \\
+Skeletal muscle fiber     & brachial plexus         & $\times$   \\
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Overall}} & \textbf{4/6 = 66.7\%} \\
+\bottomrule
+\end{tabularx}
+\caption{Blind-test VLM structure identification (backend: Groq \texttt{llama-4-scout-17b}).}
+\label{tab:vlm-results}
+\end{table}
+
+\textbf{Result: 4/6 = 66.7\%} (target $\geq$80\%).
+Both failures involve histological and cross-sectional views.
+The spinal cord cross-section and skeletal muscle fiber microscopy images share
+visual features --- elongated fiber structures, staining patterns --- that the
+vision model conflates.
+Diagram-style and overview images, which have clearer spatial landmarks, are
+all identified correctly.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Discussion}
+
+The results confirm that \textbf{generation quality is strong and retrieval
+breadth is the primary bottleneck.}
+The 100\% purity score validates separating pedagogical policy (the state
+machine) from generation (the LLM): the answer-masking invariant holds even
+under adversarial conditions.
+
+\paragraph{Retrieval limitations and planned fix.}
+Context Recall (0.65) exposes the limitation of top-$k$ semantic retrieval
+for multi-chapter questions: a single embedding query surfaces only the
+most lexically proximate chunk, leaving evidence distributed across other
+sections unretrieved.
+Context Precision (0.78) reflects a secondary issue: a small proportion of
+retrieved chunks are off-topic due to lexical overlap with unrelated sections.
+Our planned fix is a hybrid retrieval pipeline combining BM25 sparse retrieval
+and dense embedding search, merged by reciprocal rank fusion, with a
+topic-label filter applied post-merge.
+This is expected to lift Context Recall toward the $\geq$0.80 target without
+sacrificing the Faithfulness already achieved.
+
+\paragraph{Multimodal limitations and planned fix.}
+The VLM accuracy of 66.7\% is interpretable: both failures share a specific
+visual failure mode --- confusion of elongated fiber textures in
+cross-sectional and histological views --- while diagram-style and overview
+images with clear spatial landmarks are all correctly identified.
+The fix is two-pronged: (1)~enrich image metadata with histological cues
+(staining pattern, cross-section orientation, distinctive landmarks) to
+compensate when VLM confidence is low; (2)~introduce confidence-based
+routing so that low-confidence predictions are escalated to GPT-4o
+\citep{gpt4o} rather than accepted from the primary model.
+
+\paragraph{Scope of current evaluation.}
+Several components are implemented but not yet experimentally validated.
+Session memory and weak-topic revisit operate within a single session;
+cross-session persistence, mastery assessment effectiveness, and domain
+generalizability (KB swap to a new subject) are reserved for
+final-milestone evaluation and are not claimed as demonstrated results here.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\section{Conclusion}
+
+Socratic-OT demonstrates that a pedagogically controlled, retrieval-grounded
+multimodal tutoring system is feasible using open-source components and
+free-tier APIs.
+Socratic purity holds at 100\% across all evaluated scenarios including
+adversarial cases, and generation quality meets targets (Faithfulness 0.91,
+Answer Relevancy 0.97).
+The two primary gaps --- retrieval breadth (Context Recall 0.65) and
+multimodal robustness on histological images (66.7\%) --- are
+well-characterized and have concrete improvement paths: hybrid BM25 + dense
+retrieval and confidence-based GPT-4o routing respectively.
+Future work will validate these improvements and evaluate cross-session
+memory, mastery assessment, and domain transfer at final milestone.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\bibliography{custom}
+
+\end{document}

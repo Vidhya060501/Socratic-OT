@@ -1,0 +1,42 @@
+# Socratic-OT — HuggingFace Spaces requirements
+# Pin major versions for reproducibility
+
+# Vector store + embeddings
+chromadb==0.5.23
+sentence-transformers==3.3.1
+
+# LangChain stack
+langchain==0.3.19
+langchain-groq==0.2.4
+langchain-community==0.3.19
+langchain-core==0.3.40
+langgraph==0.2.74
+
+# LLM clients
+groq==0.13.1
+openai==1.65.4           # optional — GPT-4o VLM fallback
+
+# UI
+gradio==5.20.1
+streamlit>=1.40.0
+bcrypt>=4.0.0
+
+# Evaluation
+ragas==0.2.14
+datasets==3.3.2
+
+# Vision (LLaVA — only used if GPU is available)
+torch==2.6.0
+torchvision==0.21.0
+transformers==4.49.0
+accelerate==1.4.0
+bitsandbytes==0.45.3     # 4-bit quantization for LLaVA on T4
+
+# Utilities
+Pillow==11.1.0
+numpy==1.26.4
+pandas==2.2.3
+tqdm==4.67.1
+plotly>=5.18.0
+gtts>=2.5.0
+streamlit-audiorecorder>=0.0.5

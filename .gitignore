@@ -1,0 +1,37 @@
+# Virtual environments
+.venv/
+.venv_ragas/
+venv/
+
+# ChromaDB (rebuilt on first launch)
+Data/chroma_db/
+chroma_db/
+domain_swap/physics_chroma_db/
+
+# SQLite database (ephemeral)
+Data/socratic_ot.db
+data/socratic_ot.db
+
+# Session memory
+Data/session_memory/
+data/session_memory/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Env files
+.env
+*.env
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Large model cache
+*.bin
+*.safetensors

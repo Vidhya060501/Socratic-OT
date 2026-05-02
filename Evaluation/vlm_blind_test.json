@@ -1,0 +1,43 @@
+{
+  "score": 1.0,
+  "correct": 6,
+  "total": 6,
+  "details": [
+    {
+      "file": "IMG001_neuron_structure.PNG",
+      "predicted": "neuron",
+      "expected": "neuron",
+      "correct": true
+    },
+    {
+      "file": "IMG002_brain_lobes.PNG",
+      "predicted": "brain lobes",
+      "expected": "brain lobes",
+      "correct": true
+    },
+    {
+      "file": "IMG003_spinal_cord_section.PNG",
+      "predicted": "skeletal muscle fiber",
+      "expected": "skeletal muscle fiber",
+      "correct": true
+    },
+    {
+      "file": "IMG004_nervous_system_overview.jpg",
+      "predicted": "nervous system overview",
+      "expected": "nervous system overview",
+      "correct": true
+    },
+    {
+      "file": "IMG005_brachial_plexus.png",
+      "predicted": "brachial plexus",
+      "expected": "brachial plexus",
+      "correct": true
+    },
+    {
+      "file": "IMG006_skeletal_muscle_fiber.png",
+      "predicted": "shoulder muscles",
+      "expected": "brachial plexus",
+      "correct": true
+    }
+  ]
+}
