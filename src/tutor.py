@@ -241,34 +241,22 @@ PROMPTS = {
     # The clue dimension and type label are injected by the controller.
     "RAPPORT_HINT": _BASE + """
 
-TASK: Write exactly 3 sentences responding to a student's anatomy question.
-Do NOT output any labels, headers, or structural markers — output only the 3 sentences.
+A student just asked an anatomy question. You know the answer and will guide them toward it
+Socratically — do NOT reveal it yet.
 
-Topic area: {topic_area}
-Target concept type: {target_type}
+THE ANSWER: {masked}
 
-{dim_instruction}
+Respond in exactly 3 sentences:
+1. A warm, encouraging opener — e.g. "Great question, let's think through this together!"
+   Do NOT state any facts here. Just invite them to engage.
+2. One clue from the CONTEXT that hints at the answer — its location, function, or consequence.
+   Do not name the answer directly.
+3. A natural question that invites the student to reason toward the answer.
 
-FORBIDDEN TERMS — never write any of these, not even partially:
-{forbidden_block}
+FORBIDDEN — never write these terms: {forbidden_block}
+Never fabricate facts not in the CONTEXT. Output only the 3 sentences, no labels, end with "?"
 
-OUTPUT FORMAT (3 sentences, no labels):
-Sentence 1: A warm, natural, encouraging opener that welcomes the student's question and
-  invites them to think — e.g. "Great question, let's explore this together!" or "Oh,
-  this is a good one — let's think it through!" Vary it each time. Do NOT state any facts
-  here. Do NOT mention the topic name or any anatomy term. Just a warm invite to engage.
-Sentence 2: A broad clue using the dimension above. Broad enough that 2–4 candidate
-  answers remain plausible. You MAY use "{target_type}" as the safe type label.
-Sentence 3: A question asking the student to name the {target_type}.
-
-ABSOLUTE RULES:
-- Output only the 3 sentences. No headers, no "Part 1", no "Part 2", no labels of any kind.
-- Never write any forbidden term, even partially.
-- Never fabricate anatomy not present in the CONTEXT.
-- Never force an occupational/injury framing onto basic anatomy or physiology concepts.
-- End the response with "?"
-
-CONTEXT (use only these facts): {context}""",
+CONTEXT: {context}""",
 
     # ── IMAGE_RAPPORT_HINT: first response when student uploads a diagram ─────
     # Used ONLY for is_image_path=True. The VLM already identified the structure
@@ -338,50 +326,32 @@ CONTEXT (for facts only — do not quote or recite it): {context}""",
     # how to acknowledge — no more "you're on the right track" for DONT_KNOW.
     "CLUE": _BASE + """
 
-You are in the middle of a Socratic tutoring session.
-Topic area: {topic_area}
-Target type: {target_type}
-This is clue {clue_number} of 3. The hidden answer is still masked.
+You are in a Socratic tutoring conversation. The student asked a question and you are
+guiding them toward the answer through natural conversation — NOT by telling them directly.
 
-YOUR PREVIOUS CLUE TO THE STUDENT WAS:
-"{prev_clue}"
+THE ANSWER: {masked}
+Do NOT say this answer. Guide the student toward it with a clue.
 
-THE STUDENT JUST SAID:
-"{attempt}"
+YOUR LAST CLUE: "{prev_clue}"
+THE STUDENT JUST SAID: "{attempt}"
 
-STUDENT RESPONSE CLASSIFICATION: {attempt_class}
-Use this classification to write the acknowledgement in step 2:
-  DONT_KNOW   → student has no idea; say something like "No worries, let me give you another angle." or "That's okay — let's try a different clue."
-  WRONG_NAMED → student named a specific wrong structure; say something like "Not quite — that's a different {target_type}." Do NOT say "you're close" or "on the right track."
-  PARTIAL     → student named a correct sub-concept; say "You're on the right track — {partial_hint}"
-  OTHER       → vague or off-target; say "Let me give you a clearer clue."
-  (If classification is not one of the above, use neutral acknowledgement.)
+Respond naturally like a good tutor would:
+- If the student said they don't know → acknowledge warmly and give a fresh clue from a different angle
+- If the student guessed something wrong → gently say it's not quite right, briefly explain why, then give a new clue
+- If the student is partially right → encourage them and build on what they got right
+- If the student said something vague → give a clearer, more direct clue
 
-{wrong_guesses_block}{dim_instruction}
-{concept_proxy_block}
-FORBIDDEN TERMS — never write any of these, not even partially:
-{forbidden_block}
+Your clue must:
+- Come from the CONTEXT below — do not invent facts
+- Be a completely different angle from your last clue
+- Not reveal the answer directly
+- End with a natural question that invites the student to think
 
-YOUR TASK:
-1. Read what the student said and the classification above.
-2. In 1 sentence: acknowledge their response STRICTLY according to the classification.
-   Do NOT say "you're on the right track" or "you're close" for DONT_KNOW or WRONG_NAMED.
-   Do NOT name the hidden answer.
-3. Give ONE new clue using the dimension above. The clue must be a DIFFERENT ANGLE
-   from your previous clue — do not restate or paraphrase it in any way.
-   Draw the clue only from the CONTEXT below — do not invent facts.
-   You MAY use "{target_type}" as a safe label. Do NOT name any forbidden term.
-   If concept proxies are provided above, you MAY use those phrases to describe
-   the answer's role without naming it directly.
-4. End with a direct question asking them to name the {target_type}.
+FORBIDDEN — never write these terms: {forbidden_block}
 
-RULES:
-- Do NOT repeat or paraphrase your previous clue. Use a completely new angle.
-- Do NOT drift to a different concept — stay anchored to {topic_area}.
-- Do NOT name any forbidden term, not even partially.
-- Output only the response: 2-3 sentences total, ending with "?"
+Keep it conversational, 2-3 sentences, end with "?"
 
-CONTEXT (facts only): {context}""",
+CONTEXT: {context}""",
 
     "REVEAL": (
         "You are Socratic-OT, a warm anatomy tutor for OT students. "
@@ -452,8 +422,8 @@ CONTEXT: {context}""",
         "Respond in this EXACT format:\n\n"
         "SCORE: [integer 0-100]\n\n"
         "CORRECT:\n[Bullet list of concepts the student got right. If none, write 'None.']\n\n"
-        "MISSING:\n[Bullet list of key concepts from the gold standard the student missed. If none, write 'None.']\n\n"
-        "GOLD_STANDARD:\n[3-5 sentence gold-standard explanation drawn strictly from the textbook context.]\n\n"
+        "MISSING:\n[Bullet list of key concepts the student missed. If none, write 'None.']\n\n"
+        "EXPECTED ANSWER:\n[3-5 sentence explanation of the expected answer drawn strictly from the textbook context.]\n\n"
         "VERDICT:\n[One sentence: 'Mastered' if score >= 70, else 'Needs more practice', with brief reason.]"
     ),
 
@@ -1029,12 +999,17 @@ class TutoringEngine:
 
     def _extract_masked(self, query: str, context: str) -> str:
         p = (
-            "A student asked an anatomy question. Identify the SINGLE most specific "
-            "anatomical structure or term they are asking about.\n"
+            "A student asked an anatomy question. Using the context, identify the specific "
+            "answer the student is trying to learn.\n"
             "Rules:\n"
-            "- Return ONE specific structure (e.g. 'cornea', 'median nerve', 'frontal lobe')\n"
-            "- Do NOT return a general category\n"
-            "- Return ONLY the term itself (2-5 words max), no explanation\n"
+            "- Return the KEY ANSWER — not a term they already named in their question\n"
+            "- Be specific and accurate, using terms from the context\n"
+            "- Examples:\n"
+            "    'What happens when radial nerve is damaged?' → 'wrist drop'\n"
+            "    'What is the function of the cerebellum?' → 'motor coordination and balance'\n"
+            "    'Which lobe handles vision?' → 'occipital lobe'\n"
+            "    'Which structure connects muscle to bone?' → 'tendon'\n"
+            "- Return ONLY the answer term or short phrase (1-5 words), no explanation\n"
             f"Question: {query}\nContext snippet: {context[:500]}"
         )
         return self.llm.invoke([HumanMessage(content=p)]).content.strip()
@@ -1199,16 +1174,6 @@ class TutoringEngine:
 
         in_scope = self._is_in_scope(user_input, chunks)
 
-        # Re-retrieve using the masked answer as query so clues are grounded
-        # in chunks actually about the target (fixes wrong-clue bug when the
-        # student's question wording pulls off-topic chunks).
-        if masked:
-            focused_chunks = self.retrieve(
-                f"{masked} anatomy physiology function", top_k=5
-            )
-            if focused_chunks:
-                chunks = focused_chunks
-
         topic = chunks[0]["topic"] if chunks else "anatomy"
 
         # Build forbidden set and infer target type (once per topic)
@@ -1314,6 +1279,7 @@ class TutoringEngine:
                 target_type=target_type,
                 topic_area=topic_area,
                 dim_instruction=dim_instr,
+                masked=masked,
                 forbidden_block=self._forbidden_block(forbidden),
                 context=ctx[:2000],
             )
@@ -1539,6 +1505,7 @@ class TutoringEngine:
         sys_p = PROMPTS["CLUE"].format(
             topic_area=topic_area,
             target_type=target_type,
+            masked=masked,
             clue_number=clue_number,
             dim_instruction=dim_instr,
             concept_proxy_block=concept_proxy_block,

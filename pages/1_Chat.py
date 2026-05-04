@@ -117,6 +117,20 @@ def _sync_memory(sess, active_sid, engine, memory):
     return new_covered
 
 
+# ── Speaker button helper ─────────────────────────────────────────────────────
+def _speaker_btn(text: str):
+    """Render a 🔊 button using browser TTS — appears immediately, no rerun needed."""
+    _safe = text.replace("`", "").replace("'", "\\'").replace("\n", " ")
+    st.components.v1.html(
+        f"""<button onclick="window.speechSynthesis.cancel();
+        var u=new SpeechSynthesisUtterance('{_safe}');
+        u.rate=0.95;window.speechSynthesis.speak(u);"
+        style="background:none;border:none;cursor:pointer;font-size:20px;
+        padding:2px 4px;border-radius:6px;color:#555;"
+        title="Read aloud">🔊</button>""",
+        height=36,
+    )
+
 # ── TTS helper ───────────────────────────────────────────────────────────────
 def _tts_bytes(text: str):
     """Convert text to MP3 bytes via gTTS. Returns None on any failure."""
@@ -152,44 +166,73 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Voice input (STT) ─────────────────────────────────────────────────────
-    st.markdown("#### 🎙️ Voice Input")
-    st.caption("Record → transcribe → Send")
+    # ── Voice input in sidebar ────────────────────────────────────────────────
+    st.markdown("**🎙 Voice Input**")
     try:
         from audiorecorder import audiorecorder
         _mic_key = st.session_state.get("active_session_id", "default")
         _audio_seg = audiorecorder(
-            start_prompt="", stop_prompt="",
-            pause_prompt="", show_visualizer=True,
+            start_prompt="",
+            stop_prompt="",
+            pause_prompt="",
+            show_visualizer=False,
+            custom_style={
+                "display": "flex",
+                "alignItems": "center",
+                "justifyContent": "center",
+                "width": "52px",
+                "height": "52px",
+                "borderRadius": "50%",
+                "border": "none",
+                "cursor": "pointer",
+                "margin": "0 auto",
+            },
+            start_style={
+                "backgroundColor": "#10a37f",
+                "color": "white",
+                "fontSize": "22px",
+                "backgroundImage": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-7 9h2a5 5 0 0 0 10 0h2a7 7 0 0 1-6 6.92V21h3v2H8v-2h3v-2.08A7 7 0 0 1 5 12z'/%3E%3C/svg%3E\")",
+                "backgroundRepeat": "no-repeat",
+                "backgroundPosition": "center",
+                "backgroundSize": "22px",
+            },
+            stop_style={
+                "backgroundColor": "#ef4444",
+                "color": "white",
+                "fontSize": "22px",
+                "backgroundImage": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Crect x='6' y='6' width='12' height='12' rx='2'/%3E%3C/svg%3E\")",
+                "backgroundRepeat": "no-repeat",
+                "backgroundPosition": "center",
+                "backgroundSize": "18px",
+            },
             key=f"mic_{_mic_key}",
         )
         if len(_audio_seg) > 0:
             _audio_bytes = _audio_seg.export(format="wav").read()
-            _cur_hash    = str(hash(_audio_bytes))
+            _cur_hash = str(hash(_audio_bytes))
             if _cur_hash != st.session_state.get("_last_audio_hash", ""):
                 st.session_state["_last_audio_hash"] = _cur_hash
                 with st.spinner("Transcribing..."):
                     try:
                         from groq import Groq as _Groq
-                        _gc     = _Groq(api_key=components["groq_key"])
+                        _gc = _Groq(api_key=components["groq_key"])
                         _result = _gc.audio.transcriptions.create(
                             model="whisper-large-v3-turbo",
                             file=("audio.wav", _audio_bytes, "audio/wav"),
                             response_format="text",
                         )
-                        st.session_state["stt_text"] = _result.strip()
+                        st.session_state["stt_draft"] = _result.strip()
                     except Exception as _e:
                         st.warning(f"Transcription failed: {_e}")
-
-        _stt_text = st.session_state.get("stt_text", "")
-        if _stt_text:
-            st.info(f"**Heard:** {_stt_text}")
-            if st.button("Send voice message", key="stt_send_btn",
-                         use_container_width=True, type="primary"):
-                st.session_state["stt_pending"] = st.session_state.pop("stt_text")
+        _stt_draft = st.session_state.get("stt_draft", "")
+        if _stt_draft:
+            st.info(f"🎙 **Heard:** {_stt_draft}")
+            if st.button("Send ↑ to chat", key="voice_send_btn", use_container_width=True):
+                st.session_state["stt_pending"] = _stt_draft
+                st.session_state.pop("stt_draft", None)
                 st.rerun()
-    except Exception as _stt_err:
-        st.caption(f"Voice input unavailable: {_stt_err}")
+    except Exception:
+        pass
 
     st.divider()
 
@@ -200,6 +243,7 @@ with st.sidebar:
         # Clear stale voice state so old transcriptions don't leak into new session
         st.session_state.pop("stt_text", None)
         st.session_state.pop("stt_pending", None)
+        st.session_state.pop("stt_draft", None)
         st.session_state.pop("_last_audio_hash", None)
         st.rerun()
 
@@ -242,14 +286,37 @@ session_info = next(
 )
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown(f"### 💬 {session_info.get('title', 'Chat')}")
+_display_title = session_info.get('title', 'Chat')
+st.markdown(f"### 💬 {'New Chat' if _display_title == 'New Chat' else 'Chat'}")
 st.caption(f"Session started: {session_info.get('started_at', '')[:16].replace('T', ' ')}")
 st.divider()
 
 # ── Render existing chat history from DB ──────────────────────────────────────
-for msg in db.get_messages(active_sid):
+_all_msgs = db.get_messages(active_sid)
+
+if not _all_msgs:
+    with st.chat_message("assistant", avatar="🎓"):
+        st.markdown(
+            "👋 Welcome! I'm your Socratic tutor.\n\n"
+            "What topic would you like to explore today? "
+            "Are you studying for a particular exam, or is there a concept you'd like to work through?"
+        )
+
+for _i, msg in enumerate(_all_msgs):
     with st.chat_message(msg["role"], avatar="🎓" if msg["role"] == "assistant" else "👤"):
         st.markdown(msg["content"])
+        if msg["role"] == "assistant":
+            _safe = msg["content"].replace("`", "").replace("'", "\\'").replace("\n", " ")
+            st.components.v1.html(
+                f"""<button onclick="window.speechSynthesis.cancel();
+                var u=new SpeechSynthesisUtterance('{_safe}');
+                u.rate=0.95;window.speechSynthesis.speak(u);"
+                style="background:none;border:none;cursor:pointer;font-size:20px;
+                padding:2px 4px;border-radius:6px;color:#555;"
+                title="Read aloud">🔊</button>""",
+                height=36,
+            )
+
 
 # ── Chat input with native file attach (📎 paperclip in the input bar) ───────
 chat_submission = st.chat_input(
@@ -264,6 +331,7 @@ _stt_pending = st.session_state.pop("stt_pending", None)
 
 if not chat_submission and not _stt_pending:
     st.stop()
+
 
 # Resolve user_text and image from whichever input fired
 image = None
@@ -306,6 +374,7 @@ if image is not None and sess.get("vlm_result") is None:
         sess["img_upload_count"] = sess.get("img_upload_count", 0) + 1
         with st.chat_message("assistant", avatar="🎓"):
             st.markdown(rejection)
+            _speaker_btn(rejection)
             if tts_on:
                 audio = _tts_bytes(rejection)
                 if audio:
@@ -372,6 +441,7 @@ if image is not None and sess.get("vlm_result") is None:
 
     with st.chat_message("assistant", avatar="🎓"):
         st.markdown(response)
+        _speaker_btn(response)
         if tts_on:
             audio = _tts_bytes(response)
             if audio:
@@ -394,6 +464,7 @@ elif sess.get("vlm_result") and not sess["vlm_result"].get("out_of_anatomy") and
 
     with st.chat_message("assistant", avatar="🎓"):
         st.markdown(response)
+        _speaker_btn(response)
         if tts_on:
             audio = _tts_bytes(response)
             if audio:
@@ -433,6 +504,7 @@ else:
 
     with st.chat_message("assistant", avatar="🎓"):
         st.markdown(response)
+        _speaker_btn(response)
         if tts_on:
             audio = _tts_bytes(response)
             if audio:
