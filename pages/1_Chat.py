@@ -172,39 +172,10 @@ with st.sidebar:
         from audiorecorder import audiorecorder
         _mic_key = st.session_state.get("active_session_id", "default")
         _audio_seg = audiorecorder(
-            start_prompt="",
-            stop_prompt="",
+            start_prompt="🎙 Record",
+            stop_prompt="⏹ Stop",
             pause_prompt="",
             show_visualizer=False,
-            custom_style={
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "center",
-                "width": "52px",
-                "height": "52px",
-                "borderRadius": "50%",
-                "border": "none",
-                "cursor": "pointer",
-                "margin": "0 auto",
-            },
-            start_style={
-                "backgroundColor": "#10a37f",
-                "color": "white",
-                "fontSize": "22px",
-                "backgroundImage": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-7 9h2a5 5 0 0 0 10 0h2a7 7 0 0 1-6 6.92V21h3v2H8v-2h3v-2.08A7 7 0 0 1 5 12z'/%3E%3C/svg%3E\")",
-                "backgroundRepeat": "no-repeat",
-                "backgroundPosition": "center",
-                "backgroundSize": "22px",
-            },
-            stop_style={
-                "backgroundColor": "#ef4444",
-                "color": "white",
-                "fontSize": "22px",
-                "backgroundImage": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Crect x='6' y='6' width='12' height='12' rx='2'/%3E%3C/svg%3E\")",
-                "backgroundRepeat": "no-repeat",
-                "backgroundPosition": "center",
-                "backgroundSize": "18px",
-            },
             key=f"mic_{_mic_key}",
         )
         if len(_audio_seg) > 0:
