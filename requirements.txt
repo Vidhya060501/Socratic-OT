@@ -26,6 +26,7 @@ Pillow>=10.0.0
 numpy>=1.26.0
 pandas>=2.1.0
 tqdm>=4.0.0
+rank-bm25>=0.2.2
 plotly>=5.18.0
 gtts>=2.5.0
 streamlit-audiorecorder>=0.0.5
