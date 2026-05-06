@@ -202,8 +202,8 @@ with st.sidebar:
                 st.session_state["stt_pending"] = _stt_draft
                 st.session_state.pop("stt_draft", None)
                 st.rerun()
-    except Exception:
-        pass
+    except Exception as _ve:
+        st.warning(f"Voice input unavailable: {_ve}")
 
     st.divider()
 
