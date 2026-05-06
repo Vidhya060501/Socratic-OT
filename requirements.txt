@@ -1,41 +1,37 @@
-# Socratic-OT — HuggingFace Spaces requirements
-# Pin major versions for reproducibility
+# Socratic-OT — Streamlit Cloud requirements
 
 # Vector store + embeddings
 chromadb==0.5.23
 sentence-transformers==3.3.1
 
-# LangChain stack
+# LangChain stack (versions must be mutually compatible)
 langchain==0.3.20
 langchain-groq==0.2.4
 langchain-community==0.3.19
-langchain-core==0.3.40
+langchain-core==0.3.41
 langgraph==0.2.74
 
 # LLM clients
 groq==0.13.1
-openai==1.65.4           # optional — GPT-4o VLM fallback
+openai==1.65.4
 
 # UI
-gradio==5.20.1
 streamlit>=1.40.0
 bcrypt>=4.0.0
 
-# Evaluation
+# Evaluation (needed for evaluation module imports)
 ragas==0.2.14
 datasets==3.3.2
 
-# Vision (LLaVA — only used if GPU is available)
-# torch/torchvision are NOT pinned: Streamlit Cloud (Python 3.14) only has torch>=2.9.0
-# sentence-transformers will pull in a compatible torch automatically
+# Vision / transformers (no torch pin — cloud pulls compatible version)
 transformers==4.49.0
 accelerate==1.4.0
 
-# Utilities
-Pillow==11.1.0
-numpy==1.26.4
-pandas==2.2.3
-tqdm==4.67.1
+# Utilities (unpinned numpy/pandas so pip uses pre-built wheels on Python 3.14)
+Pillow>=10.0.0
+numpy>=1.26.0
+pandas>=2.1.0
+tqdm>=4.0.0
 plotly>=5.18.0
 gtts>=2.5.0
 streamlit-audiorecorder>=0.0.5
