@@ -1883,7 +1883,7 @@ class TutoringEngine:
     def _build_graph(self):
         def route(state: DialogueState) -> str:
             if state.get("out_of_scope"):
-                return "out_of_scope"
+                return "out_of_scope_node"
             return {
                 "RAPPORT":               "rapport",
                 "HINT":                  "hint",
@@ -1901,7 +1901,7 @@ class TutoringEngine:
         builder = StateGraph(DialogueState)
         nodes = {
             "router":                self._router,
-            "out_of_scope":          self._out_of_scope,
+            "out_of_scope_node":     self._out_of_scope,
             "rapport":               self._rapport,
             "hint":                  self._hint,
             "clue":                  self._clue,
