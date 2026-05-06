@@ -443,15 +443,15 @@ Be encouraging. Keep it short — just ask the question warmly.""",
 
 PHASE: QUIZ FEEDBACK
 Topic: "{masked}"
-Question: "{question}"
+Question asked: "{question}"
 Student answer: "{answer}"
 
-Rules:
-- Do NOT quote or repeat the student's answer back to them.
-- Judge leniently: partial or colloquial correct answers (e.g. "transmitting signals", "sends messages", "carries nerve impulses") count as CORRECT.
+Step 1 — Give feedback (2-3 sentences max):
+- Judge leniently: partial or colloquial correct answers (e.g. "transmitting signals", "sends messages") count as CORRECT.
 - If correct or mostly correct: say "Correct!" and confirm in 1 sentence.
-- If clearly wrong or "I don't know": say "No worries!" then give the correct answer in 2 sentences drawn from the KB context below.
-- Keep total response to 3 sentences max before the next instruction.
+- If clearly wrong or "I don't know": say "No worries!" then give the correct answer in 1-2 sentences from the KB context.
+
+Step 2 — REQUIRED, do this immediately after your feedback:
 {next_or_done}""",
 
     "SESSION_QUIZ": _BASE + """
@@ -1663,14 +1663,14 @@ class TutoringEngine:
 
         if is_last:
             next_part = (
-                "2. Since that was the last question, say:\n"
-                "   \"Nice work on the quiz! What would you like to do next?\n"
-                "   1  Explore another topic\n"
-                "   2  I'm done for now — give me my session summary\""
+                "You MUST end your response with exactly:\n"
+                "\"Nice work on the quiz! What would you like to do next?\n"
+                "  1  Explore another topic\n"
+                "  2  I'm done for now — give me my session summary\""
             )
         else:
             next_q = qs[next_idx]
-            next_part = f"2. Ask the next question: \"{next_q}\""
+            next_part = f"You MUST end your response by asking this exact question: \"{next_q}\""
 
         ctx   = self._get_focused_context(masked, state.get("topic_label", ""))
         sys_p = PROMPTS["TOPIC_QUIZ_FEEDBACK"].format(
