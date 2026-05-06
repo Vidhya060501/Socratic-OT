@@ -11,7 +11,7 @@ langchain-groq==0.2.4
 langchain-community==0.3.19
 langchain-core==0.3.41
 langgraph==0.2.74
-langsmith>=0.2,<0.3.45
+langsmith==0.2.11
 
 # LLM clients
 groq==0.13.1
