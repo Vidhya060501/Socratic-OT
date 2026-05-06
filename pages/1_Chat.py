@@ -296,7 +296,7 @@ chat_submission = st.chat_input(
     "Ask any anatomy or neuroscience question...",
     accept_file=True,
     file_type=["png", "jpg", "jpeg", "webp"],
-    key=f"chat_input_{active_sid}_{sess.get('img_upload_count', 0)}",
+    key=f"chat_input_{active_sid}",
 )
 
 # ── Only process when user submits (typed OR voice) ──────────────────────────
@@ -344,7 +344,6 @@ if image is not None and sess.get("vlm_result") is None:
     # ── Out-of-anatomy: reject immediately, do NOT wire engine state ──────────
     if result.get("out_of_anatomy"):
         rejection = result["socratic_question"]
-        sess["img_upload_count"] = sess.get("img_upload_count", 0) + 1
         with st.chat_message("assistant", avatar="🎓"):
             st.markdown(rejection)
             _speaker_btn(rejection)
@@ -356,7 +355,6 @@ if image is not None and sess.get("vlm_result") is None:
         st.stop()
 
     sess["vlm_result"] = result
-    sess["img_upload_count"] = sess.get("img_upload_count", 0) + 1
 
     masked      = result["structure"]
     topic       = result.get("topic", "anatomy")
