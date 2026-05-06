@@ -35,3 +35,25 @@ __pycache__/
 # Large model cache
 *.bin
 *.safetensors
+
+# Non-app files (report, slides, evaluation, notebooks, gradio)
+app.py
+main.py
+generate_transcripts.py
+generate_image_transcripts.py
+run_in_colab.ipynb
+Final_Report.tex
+Milestone2_Report.tex
+Milestone2_Report.md
+NLP_Socraric_OT_Report_bandaru7_richiemo.pdf
+NLP_Socratic_OT_Presentation_bandaru7_richiemo.pptx
+PROJECT_CONTEXT.md
+Rules.MD
+DEPLOYMENT_GUIDE.md
+custom.bib
+Notebooks/
+Evaluation/
+domain_swap/
+Data/Project Images/
+Data/images/TestImages/
+.gradio/
