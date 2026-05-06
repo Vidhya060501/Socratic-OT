@@ -448,8 +448,9 @@ Student answer: "{answer}"
 
 Rules:
 - Do NOT quote or repeat the student's answer back to them.
-- If correct: say "Correct!" and confirm in 1 sentence.
-- If wrong or "I don't know": say "No worries!" then give the correct answer in 2 sentences drawn from the KB context below.
+- Judge leniently: partial or colloquial correct answers (e.g. "transmitting signals", "sends messages", "carries nerve impulses") count as CORRECT.
+- If correct or mostly correct: say "Correct!" and confirm in 1 sentence.
+- If clearly wrong or "I don't know": say "No worries!" then give the correct answer in 2 sentences drawn from the KB context below.
 - Keep total response to 3 sentences max before the next instruction.
 {next_or_done}""",
 
