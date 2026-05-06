@@ -168,42 +168,32 @@ with st.sidebar:
 
     # ── Voice input in sidebar ────────────────────────────────────────────────
     st.markdown("**🎙 Voice Input**")
-    try:
-        from audiorecorder import audiorecorder
-        _mic_key = st.session_state.get("active_session_id", "default")
-        _audio_seg = audiorecorder(
-            start_prompt="🎙 Record",
-            stop_prompt="⏹ Stop",
-            pause_prompt="",
-            show_visualizer=False,
-            key=f"mic_{_mic_key}",
-        )
-        if len(_audio_seg) > 0:
-            _audio_bytes = _audio_seg.export(format="wav").read()
-            _cur_hash = str(hash(_audio_bytes))
-            if _cur_hash != st.session_state.get("_last_audio_hash", ""):
-                st.session_state["_last_audio_hash"] = _cur_hash
-                with st.spinner("Transcribing..."):
-                    try:
-                        from groq import Groq as _Groq
-                        _gc = _Groq(api_key=components["groq_key"])
-                        _result = _gc.audio.transcriptions.create(
-                            model="whisper-large-v3-turbo",
-                            file=("audio.wav", _audio_bytes, "audio/wav"),
-                            response_format="text",
-                        )
-                        st.session_state["stt_draft"] = _result.strip()
-                    except Exception as _e:
-                        st.warning(f"Transcription failed: {_e}")
-        _stt_draft = st.session_state.get("stt_draft", "")
-        if _stt_draft:
-            st.info(f"🎙 **Heard:** {_stt_draft}")
-            if st.button("Send ↑ to chat", key="voice_send_btn", use_container_width=True):
-                st.session_state["stt_pending"] = _stt_draft
-                st.session_state.pop("stt_draft", None)
-                st.rerun()
-    except Exception as _ve:
-        st.warning(f"Voice input unavailable: {_ve}")
+    _mic_key = st.session_state.get("active_session_id", "default")
+    _audio_file = st.audio_input("Record your answer", key=f"mic_{_mic_key}")
+    if _audio_file is not None:
+        _audio_bytes = _audio_file.read()
+        _cur_hash = str(hash(_audio_bytes))
+        if _cur_hash != st.session_state.get("_last_audio_hash", ""):
+            st.session_state["_last_audio_hash"] = _cur_hash
+            with st.spinner("Transcribing..."):
+                try:
+                    from groq import Groq as _Groq
+                    _gc = _Groq(api_key=components["groq_key"])
+                    _result = _gc.audio.transcriptions.create(
+                        model="whisper-large-v3-turbo",
+                        file=("audio.wav", _audio_bytes, "audio/wav"),
+                        response_format="text",
+                    )
+                    st.session_state["stt_draft"] = _result.strip()
+                except Exception as _e:
+                    st.warning(f"Transcription failed: {_e}")
+    _stt_draft = st.session_state.get("stt_draft", "")
+    if _stt_draft:
+        st.info(f"🎙 **Heard:** {_stt_draft}")
+        if st.button("Send ↑ to chat", key="voice_send_btn", use_container_width=True):
+            st.session_state["stt_pending"] = _stt_draft
+            st.session_state.pop("stt_draft", None)
+            st.rerun()
 
     st.divider()
 
