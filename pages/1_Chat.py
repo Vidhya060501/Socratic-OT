@@ -169,26 +169,32 @@ with st.sidebar:
     # ── Voice input in sidebar ────────────────────────────────────────────────
     st.markdown("**🎙 Voice Input**")
     _mic_key = st.session_state.get("active_session_id", "default")
-    _audio_file = st.audio_input("Record your answer", key=f"mic_{_mic_key}")
-    if _audio_file is not None:
-        _audio_bytes = _audio_file.read()
-        _cur_hash = str(hash(_audio_bytes))
-        if _cur_hash != st.session_state.get("_last_audio_hash", ""):
-            st.session_state["_last_audio_hash"] = _cur_hash
-            with st.spinner("Transcribing..."):
-                try:
-                    from groq import Groq as _Groq
-                    _gc = _Groq(api_key=components["groq_key"])
-                    _result = _gc.audio.transcriptions.create(
-                        model="whisper-large-v3-turbo",
-                        file=("audio.wav", _audio_bytes, "audio/wav"),
-                        response_format="text",
-                    )
-                    st.session_state["stt_draft"] = _result.strip()
-                except Exception as _e:
-                    st.warning(f"Transcription failed: {_e}")
+    _mic_gen  = st.session_state.get("_mic_gen", 0)
+    # Only show the recorder widget when there is no pending draft (avoids error UI)
     _stt_draft = st.session_state.get("stt_draft", "")
-    if _stt_draft:
+    if not _stt_draft:
+        _audio_file = st.audio_input("Record your answer", key=f"mic_{_mic_key}_{_mic_gen}")
+        if _audio_file is not None:
+            _audio_bytes = _audio_file.read()
+            _cur_hash = str(hash(_audio_bytes))
+            if _cur_hash != st.session_state.get("_last_audio_hash", ""):
+                st.session_state["_last_audio_hash"] = _cur_hash
+                with st.spinner("Transcribing..."):
+                    try:
+                        from groq import Groq as _Groq
+                        _gc = _Groq(api_key=components["groq_key"])
+                        _result = _gc.audio.transcriptions.create(
+                            model="whisper-large-v3-turbo",
+                            file=("audio.wav", _audio_bytes, "audio/wav"),
+                            response_format="text",
+                        )
+                        st.session_state["stt_draft"] = _result.strip()
+                        # Bump generation so widget resets after send
+                        st.session_state["_mic_gen"] = _mic_gen + 1
+                        st.rerun()
+                    except Exception as _e:
+                        st.warning(f"Transcription failed: {_e}")
+    else:
         st.info(f"🎙 **Heard:** {_stt_draft}")
         if st.button("Send ↑ to chat", key="voice_send_btn", use_container_width=True):
             st.session_state["stt_pending"] = _stt_draft
