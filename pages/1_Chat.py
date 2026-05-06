@@ -170,26 +170,32 @@ with st.sidebar:
     st.markdown("**🎙 Voice Input**")
     _mic_key = st.session_state.get("active_session_id", "default")
     _mic_gen  = st.session_state.get("_mic_gen", 0)
-    # Only show the recorder widget when there is no pending draft (avoids error UI)
     _stt_draft = st.session_state.get("stt_draft", "")
     if not _stt_draft:
-        _audio_file = st.audio_input("Record your answer", key=f"mic_{_mic_key}_{_mic_gen}")
+        # Use an empty placeholder — we swap it out the moment audio arrives
+        # so the widget's internal playback error never has time to render
+        _mic_placeholder = st.empty()
+        with _mic_placeholder:
+            _audio_file = st.audio_input("Record your answer", key=f"mic_{_mic_key}_{_mic_gen}")
         if _audio_file is not None:
             _audio_bytes = _audio_file.read()
             _cur_hash = str(hash(_audio_bytes))
             if _cur_hash != st.session_state.get("_last_audio_hash", ""):
                 st.session_state["_last_audio_hash"] = _cur_hash
+                # Clear the widget immediately before transcription starts
+                _mic_placeholder.empty()
                 with st.spinner("Transcribing..."):
                     try:
                         from groq import Groq as _Groq
                         _gc = _Groq(api_key=components["groq_key"])
                         _result = _gc.audio.transcriptions.create(
                             model="whisper-large-v3-turbo",
-                            file=("audio.wav", _audio_bytes, "audio/wav"),
+                            file=("audio.webm", _audio_bytes, "audio/webm"),
                             response_format="text",
+                            language="en",
+                            prompt="This is an English language occupational therapy tutoring session.",
                         )
                         st.session_state["stt_draft"] = _result.strip()
-                        # Bump generation so widget resets after send
                         st.session_state["_mic_gen"] = _mic_gen + 1
                         st.rerun()
                     except Exception as _e:
